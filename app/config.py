@@ -9,20 +9,24 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Every field is required: no in-code defaults. `.env.example` is the
+    single documented source of truth for what to set and what a sane local
+    value looks like — duplicating defaults here would just give the app and
+    the example file two places to drift apart.
+    """
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    environment: str = "development"
-
     # News provider — selects a module in app/services/news/
-    news_provider: str = "gnews"
-    gnews_api_key: str  # required: no safe default for a secret
+    news_provider: str
+    gnews_api_key: str
 
     # AI provider — selects a module in app/services/analysis/
-    ai_provider: str = "openai"
-    openai_api_key: str  # required: no safe default for a secret
-    openai_model: str = "gpt-4o-mini"
+    ai_provider: str
+    openai_api_key: str
+    openai_model: str
 
-    database_url: str = "postgresql+psycopg://newslens:newslens@db:5432/newslens"
+    database_url: str
 
 
 @lru_cache
