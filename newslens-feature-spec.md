@@ -162,7 +162,6 @@ Expected local commands (the exact service names and commands must match the fin
 cp .env.example .env  # then supply local configuration and provider keys
 docker compose up --build -d
 docker compose ps
-curl -f http://localhost:8000/health
 docker compose logs -f app
 docker compose down
 ```
@@ -272,11 +271,7 @@ No calls to external news or AI providers.
 
 Return a single saved analysis resource, or `404 Not Found`. Retained for REST completeness and potential direct links to a saved analysis; the normal Discover and History flows do not call it — Discover always POSTs the snapshot (§3.2, §6.2) and History already has the full resource from the list endpoint.
 
-### 6.5 `GET /health`
-
-Lightweight liveness endpoint for the hosting platform. Do not expose secrets or trigger external provider calls, and do not query the database — this is a liveness check, not a readiness check, so it must stay correct even if the database is temporarily unavailable.
-
-### 6.6 Error semantics
+### 6.5 Error semantics
 
 | Status | Meaning |
 | --- | --- |
@@ -406,7 +401,7 @@ Use focused behavioural tests. Mock news and OpenAI calls; automated tests shoul
 
 ### Backend readiness gate (before any UI implementation)
 
-- [ ] Local Docker Compose application and PostgreSQL start successfully; health endpoint responds.
+- [ ] Local Docker Compose application and PostgreSQL start successfully and the API is reachable.
 - [ ] Schema is initialised and PostgreSQL constraints are exercised by tests.
 - [ ] All four product endpoints are implemented, documented in OpenAPI and independently callable using curl or Swagger UI.
 - [ ] Automated backend tests above pass against isolated local test storage with mocked provider calls.
@@ -438,7 +433,7 @@ The three-hour target is a timebox, not a promise. The workflow is API-first, lo
 
 | Phase | Work | Target |
 | --- | --- | --- |
-| 1 | Scaffold, Dockerfile/Compose, settings, database model, health endpoint | 25 min |
+| 1 | Scaffold, Dockerfile/Compose, settings, database model | 25 min |
 | 2 | News client, search endpoint, normalisation and saved-ID lookup; tests | 20 min |
 | 3 | AI structured output, analysis endpoints, persistence and tests | 35 min |
 | 4 | Backend readiness gate: local API smoke tests, persistence and contract review | 15 min |
