@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NewsLens</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="app-header">
+    <span class="app-title">NewsLens</span>
+    <nav class="app-nav" aria-label="Primary">
+      <button type="button" class="nav-link" id="nav-discover" aria-current="page">Discover</button>
+      <button type="button" class="nav-link" id="nav-history">History</button>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <!-- Discover view: search + live results + detail panel -->
+    <section id="discover-view" class="view">
+      <h1 class="visually-hidden">Discover recent news</h1>
+
+      <form class="search-form" id="search-form" role="search" aria-label="Search recent news">
+        <label for="search-input" class="visually-hidden">Search for recent news</label>
+        <input
+          id="search-input"
+          name="query"
+          type="search"
+          placeholder="Search for recent news..."
+          autocomplete="off"
+          maxlength="200"
+        />
+        <button type="submit">Search</button>
+      </form>
+
+      <p class="status-message" id="search-status" role="status" aria-live="polite"></p>
+
+      <div class="master-detail" id="discover-master-detail">
+        <section class="article-list" id="discover-article-list" aria-label="Recent articles">
+          <p class="empty-state">Search for a topic above to see recent articles.</p>
+        </section>
+
+        <section class="detail-panel" id="discover-detail-panel" aria-label="Selected article" aria-live="polite">
+          <button type="button" class="back-button" id="discover-back-button" hidden>
+            <span aria-hidden="true">&larr;</span> Back to results
+          </button>
+          <p class="empty-state">Select an article to see its summary and sentiment.</p>
+        </section>
+      </div>
+    </section>
+
+    <!-- History view: previously saved analyses + the same detail panel shape -->
+    <section id="history-view" class="view" hidden>
+      <h1 class="visually-hidden">History</h1>
+
+      <div class="master-detail" id="history-master-detail">
+        <section class="article-list" id="history-article-list" aria-label="Analysed articles">
+          <p class="empty-state">No analyses yet. Select an article in Discover to create one.</p>
+        </section>
+
+        <section class="detail-panel" id="history-detail-panel" aria-label="Selected analysis" aria-live="polite">
+          <button type="button" class="back-button" id="history-back-button" hidden>
+            <span aria-hidden="true">&larr;</span> Back to history
+          </button>
+          <p class="empty-state">Select an analysis to view its summary and sentiment.</p>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <!-- Templates below are inert until cloned by app.js (added in a later
+       increment) -- they render nothing on their own. -->
+
+  <template id="article-card-template">
+    <button type="button" class="article-card">
+      <span class="article-card__badge" hidden>&#10003; Analysed</span>
+      <span class="article-card__meta"><span class="article-card__source"></span> &middot; <span class="article-card__published"></span></span>
+      <span class="article-card__title"></span>
+      <span class="article-card__description"></span>
+    </button>
+  </template>
+
+  <template id="history-card-template">
+    <button type="button" class="article-card">
+      <span class="article-card__meta"><span class="article-card__source"></span> &middot; <span class="article-card__published"></span></span>
+      <span class="article-card__title"></span>
+      <span class="sentiment-label"></span>
+    </button>
+  </template>
+
+  <template id="detail-metadata-template">
+    <div class="detail-metadata">
+      <span class="detail-metadata__meta"><span class="detail-metadata__source"></span> &middot; <span class="detail-metadata__published"></span></span>
+      <h2 class="detail-metadata__title"></h2>
+      <p class="detail-metadata__description"></p>
+      <a class="detail-metadata__link" href="#" target="_blank" rel="noopener noreferrer">Read original article &#8599;</a>
+    </div>
+  </template>
+
+  <template id="detail-loading-template">
+    <div class="detail-body">
+      <hr />
+      <p class="status-message" role="status">Generating article insights&hellip;</p>
+      <div class="skeleton-line skeleton-line--heading"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line--short"></div>
+    </div>
+  </template>
+
+  <template id="detail-success-template">
+    <div class="detail-body">
+      <hr />
+      <h3>AI summary</h3>
+      <p class="detail-summary"></p>
+      <h3>Sentiment</h3>
+      <p class="sentiment-label"></p>
+      <p class="status-message detail-saved-indicator">Saved to history</p>
+      <p class="detail-scope-note"></p>
+    </div>
+  </template>
+
+  <template id="detail-error-template">
+    <div class="detail-body">
+      <hr />
+      <p class="error-message" role="alert"></p>
+      <button type="button" class="retry-button">Retry</button>
+    </div>
+  </template>
+
+  <!-- app.js is added in the next increment, once there's behaviour to wire up. -->
+</body>
+</html>
