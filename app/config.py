@@ -24,9 +24,6 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://newslens:newslens@db:5432/newslens"
 
-    demo_username: str = ""
-    demo_password: str = ""
-
 
 @lru_cache
 def get_settings() -> Settings:

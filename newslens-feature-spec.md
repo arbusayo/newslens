@@ -274,13 +274,12 @@ Return a single saved analysis resource, or `404 Not Found`. Retained for REST c
 
 ### 6.5 `GET /health`
 
-Lightweight liveness endpoint for the hosting platform. Do not expose secrets or trigger external provider calls, and do not query the database — this is a liveness check, not a readiness check, so it must stay correct even if the database is temporarily unavailable. Exempt this path from HTTP Basic auth (§10) regardless of where that auth is enforced, since the hosting platform calls it unauthenticated.
+Lightweight liveness endpoint for the hosting platform. Do not expose secrets or trigger external provider calls, and do not query the database — this is a liveness check, not a readiness check, so it must stay correct even if the database is temporarily unavailable.
 
 ### 6.6 Error semantics
 
 | Status | Meaning |
 | --- | --- |
-| 401 | Demo authentication required or invalid |
 | 404 | Saved analysis not found |
 | 422 | Invalid query or article input |
 | 502 | Upstream provider error or unusable AI response |
@@ -380,12 +379,12 @@ This is guidance, not a requirement to manufacture files or abstractions. Simple
 ## 10. Security, configuration and operational baseline
 
 - API credentials remain exclusively on the server. Never place them in JavaScript, static files, version control or logs.
-- Use environment configuration: `GNEWS_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `DATABASE_URL`, `DEMO_USERNAME`, `DEMO_PASSWORD`.
+- Use environment configuration: `GNEWS_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `DATABASE_URL`.
 - Provide `.env.example` with placeholders only and ignore real `.env` files.
-- Restrict hosted demo access with simple HTTP Basic authentication over HTTPS, implemented as application middleware (do not assume the hosting platform provides this, since not all tiers support hosting-level access protection). Protect frontend, paid API endpoints, History and API documentation; explicitly exempt the `/health` liveness endpoint from this middleware (see §6.5). Avoid building a user system. Share demo credentials separately with reviewers.
+- The hosted demo is intentionally public: no authentication gate. This is a product decision, not an oversight — anyone with the URL can reach the frontend, History and the paid API endpoints (GNews search, OpenAI analysis). Accepted risk: an unauthenticated visitor can consume GNews quota and OpenAI budget. Mitigate the cost exposure instead through provider-side controls (a hard OpenAI spend cap, conservative GNews quota expectations) rather than an app-level login.
 - Render untrusted text using `textContent` or equivalent safe DOM operations; do not interpolate article or AI content into `innerHTML`. Restrict publisher links to HTTP(S) and use safe new-tab attributes (`noopener noreferrer`).
 - Apply bounded input lengths, explicit upstream timeouts and conservative SDK retries. Avoid runaway retry loops or sending unnecessary provider requests.
-- Serve frontend and API from the same origin. Do not enable permissive CORS. If using HTTP Basic auth, reject cross-origin state-changing requests by checking the request's `Origin` header (when present) against its own `Host`/scheme — no separate "expected origin" configuration value is needed — and require JSON for analysis POSTs; avoid side effects in GET handlers.
+- Serve frontend and API from the same origin. Do not enable permissive CORS. Require JSON content type for analysis POSTs and avoid side effects in GET handlers.
 - Use parameterised ORM/database queries and server-side validation.
 - Keep error logs useful and redact credentials. No external monitoring or observability stack is required.
 - The restricted demo is not a public multi-tenant production system. Shared history, lack of sophisticated rate limiting, limited provenance and coarse URL identity are intentional trade-offs.
@@ -429,8 +428,9 @@ Use focused behavioural tests. Mock news and OpenAI calls; automated tests shoul
 - [ ] Mobile layout is usable and returning to results preserves search context.
 - [ ] Original publisher link works; untrusted text is not rendered as HTML.
 - [ ] Complete the same end-to-end UX smoke test locally in Docker Compose before any hosting work.
-- [ ] Hosted demo is accessible to reviewers with supplied access credentials; unauthenticated visitors cannot consume paid API credits.
-- [ ] No real credentials are committed or exposed in browser network responses.
+- [ ] Hosted demo is reachable at a public URL with no login step, per the accepted no-auth decision (§10).
+- [ ] No real credentials (provider API keys, database URL) are committed or exposed in browser network responses.
+- [ ] Provider-side spend/quota controls (OpenAI budget cap, awareness of GNews daily quota) are in place before sharing the hosted URL, since any visitor can trigger billable requests.
 
 ## 12. Implementation sequence (only after approval)
 
