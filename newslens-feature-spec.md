@@ -267,6 +267,8 @@ Return saved analysis resources, newest `created_at` first, with `id` as a stabl
 
 No calls to external news or AI providers.
 
+This is a full list, not paginated: no `limit`/`offset`/cursor parameters, and the response shape never changes (§2/§3.4 explicitly exclude pagination from this scope). A server-side cap (currently 100 rows) bounds the query and payload defensively against an ever-growing shared history — a quiet safety limit, not pagination; it is not expected to be reached in normal use of this demo.
+
 ### 6.4 `GET /api/analyses/{id}`
 
 Return a single saved analysis resource, or `404 Not Found`. Retained for REST completeness and potential direct links to a saved analysis; the normal Discover and History flows do not call it — Discover always POSTs the snapshot (§3.2, §6.2) and History already has the full resource from the list endpoint.

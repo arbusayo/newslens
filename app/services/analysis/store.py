@@ -23,6 +23,11 @@ _DUPLICATE_URL_CONSTRAINT = "article_analyses_article_url_key"
 # ever added.
 _CONTENT_SCOPE = "excerpt"
 
+# A quiet defensive cap, not pagination (spec §6.3): History is shared and
+# never deleted, so bound the query/payload against unbounded growth. No
+# API contract change -- the response shape stays {"analyses": [...]}.
+_LIST_LIMIT = 100
+
 
 def attach_saved_analysis_ids(articles: list[NormalizedArticle], db: Session) -> None:
     """Fill in analysis_id for every article already saved, in one query
@@ -46,13 +51,15 @@ def find_by_url(db: Session, url: str) -> ArticleAnalysis | None:
 
 def list_analyses(db: Session) -> list[ArticleAnalysis]:
     """All saved analyses, newest created_at first with id as a stable
-    tie-breaker (spec §6.3). No pagination -- out of scope (spec §2)
-    unless subsequently requested.
+    tie-breaker (spec §6.3), capped at _LIST_LIMIT. No pagination -- out
+    of scope (spec §2) unless subsequently requested.
     """
-    rows = db.execute(
-        select(ArticleAnalysis).order_by(ArticleAnalysis.created_at.desc(), ArticleAnalysis.id.desc())
-    ).scalars()
-    return list(rows)
+    query = (
+        select(ArticleAnalysis)
+        .order_by(ArticleAnalysis.created_at.desc(), ArticleAnalysis.id.desc())
+        .limit(_LIST_LIMIT)
+    )
+    return list(db.execute(query).scalars())
 
 
 def get_analysis_by_id(db: Session, analysis_id: int) -> ArticleAnalysis | None:

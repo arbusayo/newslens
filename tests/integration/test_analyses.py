@@ -7,14 +7,14 @@ no API credits spent. The database is real (see tests/integration/
 conftest.py): the dedup/race behaviour is specifically PostgreSQL
 constraint handling, which is exactly what should NOT be mocked away.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
 
 from app.models import ArticleAnalysis
 from app.schemas import AIAnalysisOutput, AnalysisSnapshot, Sentiment
-from app.services.analysis.store import insert_or_get_existing
+from app.services.analysis.store import _LIST_LIMIT, insert_or_get_existing
 from app.services.errors import ProviderError, ProviderTimeout, ProviderUnavailable
 
 
@@ -199,3 +199,35 @@ def test_get_analysis_by_id_returns_404_when_missing(client):
     response = client.get("/api/analyses/999999")
 
     assert response.status_code == 404
+
+
+def test_list_analyses_is_capped_at_list_limit_newest_kept(client, db_session):
+    """A quiet defensive cap, not pagination (spec §6.3): inserting more
+    than the limit must still return exactly the limit, keeping the
+    newest rows rather than an arbitrary subset.
+    """
+    total_rows = _LIST_LIMIT + 10
+    base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    rows = [
+        ArticleAnalysis(
+            article_url=f"https://example.com/bulk/{i}",
+            title=f"Bulk {i}",
+            summary="Summary.",
+            sentiment="neutral",
+            content_scope="excerpt",
+            model="gpt-4o-mini",
+            created_at=base_time + timedelta(seconds=i),  # i=0 oldest, higher i newer
+        )
+        for i in range(total_rows)
+    ]
+    db_session.add_all(rows)
+    db_session.commit()
+
+    response = client.get("/api/analyses")
+
+    assert response.status_code == 200
+    analyses = response.json()["analyses"]
+    assert len(analyses) == _LIST_LIMIT
+
+    newest_expected_urls = {f"https://example.com/bulk/{i}" for i in range(total_rows - _LIST_LIMIT, total_rows)}
+    assert {a["article_url"] for a in analyses} == newest_expected_urls
