@@ -2,13 +2,14 @@
 
 No access control is applied — the hosted demo is intentionally public
 (product decision; see README for the accepted cost/exposure tradeoff).
-Routes are added in later increments.
+Static UI assets are mounted in a later increment.
 """
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app.database import init_db
+from app.routes import router
 
 
 @asynccontextmanager
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="NewsLens", lifespan=lifespan)
+    app.include_router(router)
     return app
 
 
