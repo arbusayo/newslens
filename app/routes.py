@@ -5,14 +5,14 @@ status codes — they don't build queries or talk to the database directly.
 """
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.schemas import ArticlesResponse
+from app.schemas import AnalysisResource, AnalysisSnapshot, ArticlesResponse
+from app.services.analysis import attach_saved_analysis_ids, create_or_get_analysis
 from app.services.errors import ProviderError, ProviderTimeout, ProviderUnavailable
-from app.services.analysis import attach_saved_analysis_ids
 from app.services.news import search_articles
 
 logger = logging.getLogger(__name__)
@@ -50,3 +50,30 @@ def get_articles(
 
     attach_saved_analysis_ids(articles, db)
     return ArticlesResponse(articles=articles)
+
+
+@router.post("/analyses", response_model=AnalysisResource, status_code=201)
+def create_analysis(
+    snapshot: AnalysisSnapshot,
+    response: Response,
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+) -> AnalysisResource:
+    try:
+        row, created = create_or_get_analysis(snapshot, settings, db)
+    except ProviderTimeout as exc:
+        logger.warning("analysis generation timed out: %s", exc)
+        raise HTTPException(status_code=504, detail="AI analysis request timed out") from exc
+    except ProviderUnavailable as exc:
+        logger.warning("analysis generation unavailable: %s", exc)
+        raise HTTPException(status_code=503, detail="AI analysis temporarily unavailable") from exc
+    except ProviderError as exc:
+        logger.warning("analysis generation failed: %s", exc)
+        raise HTTPException(status_code=502, detail="AI analysis error") from exc
+
+    if created:
+        response.headers["Location"] = f"/api/analyses/{row.id}"
+    else:
+        response.status_code = 200
+
+    return AnalysisResource.model_validate(row)
