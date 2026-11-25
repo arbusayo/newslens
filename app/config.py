@@ -15,11 +15,11 @@ class Settings(BaseSettings):
 
     # News provider — selects a module in app/services/news/
     news_provider: str = "gnews"
-    gnews_api_key: str = ""
+    gnews_api_key: str  # required: no safe default for a secret
 
     # AI provider — selects a module in app/services/analysis/
     ai_provider: str = "openai"
-    openai_api_key: str = ""
+    openai_api_key: str  # required: no safe default for a secret
     openai_model: str = "gpt-4o-mini"
 
     database_url: str = "postgresql+psycopg://newslens:newslens@db:5432/newslens"
