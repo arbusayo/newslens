@@ -19,7 +19,13 @@ from app.schemas import AIAnalysisOutput, AnalysisSnapshot
 from app.services.errors import ProviderError
 
 from . import openai_provider
-from .store import attach_saved_analysis_ids, find_by_url, insert_or_get_existing
+from .store import (
+    attach_saved_analysis_ids,
+    find_by_url,
+    get_analysis_by_id,
+    insert_or_get_existing,
+    list_analyses,
+)
 
 _PROVIDER_MODULES = {
     "openai": openai_provider,
@@ -56,4 +62,9 @@ def _generate(snapshot: AnalysisSnapshot, settings: Settings) -> AIAnalysisOutpu
     return module.analyze(snapshot, settings)
 
 
-__all__ = ["attach_saved_analysis_ids", "create_or_get_analysis"]
+__all__ = [
+    "attach_saved_analysis_ids",
+    "create_or_get_analysis",
+    "list_analyses",
+    "get_analysis_by_id",
+]

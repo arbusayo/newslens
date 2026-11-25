@@ -159,3 +159,7 @@ class AnalysisResource(BaseModel):
     @field_serializer("created_at")
     def _serialize_created_at(self, value: datetime) -> str:
         return to_iso_z(value)
+
+
+class AnalysesListResponse(BaseModel):
+    analyses: list[AnalysisResource]

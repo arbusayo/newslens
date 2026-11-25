@@ -44,6 +44,21 @@ def find_by_url(db: Session, url: str) -> ArticleAnalysis | None:
     return db.execute(select(ArticleAnalysis).where(ArticleAnalysis.article_url == url)).scalar_one_or_none()
 
 
+def list_analyses(db: Session) -> list[ArticleAnalysis]:
+    """All saved analyses, newest created_at first with id as a stable
+    tie-breaker (spec §6.3). No pagination -- out of scope (spec §2)
+    unless subsequently requested.
+    """
+    rows = db.execute(
+        select(ArticleAnalysis).order_by(ArticleAnalysis.created_at.desc(), ArticleAnalysis.id.desc())
+    ).scalars()
+    return list(rows)
+
+
+def get_analysis_by_id(db: Session, analysis_id: int) -> ArticleAnalysis | None:
+    return db.get(ArticleAnalysis, analysis_id)
+
+
 def insert_or_get_existing(
     db: Session, snapshot: AnalysisSnapshot, output: AIAnalysisOutput
 ) -> tuple[ArticleAnalysis, bool]:

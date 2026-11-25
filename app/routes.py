@@ -10,8 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.schemas import AnalysisResource, AnalysisSnapshot, ArticlesResponse
-from app.services.analysis import attach_saved_analysis_ids, create_or_get_analysis
+from app.schemas import AnalysesListResponse, AnalysisResource, AnalysisSnapshot, ArticlesResponse
+from app.services.analysis import (
+    attach_saved_analysis_ids,
+    create_or_get_analysis,
+    get_analysis_by_id,
+    list_analyses,
+)
 from app.services.errors import ProviderError, ProviderTimeout, ProviderUnavailable
 from app.services.news import search_articles
 
@@ -76,4 +81,21 @@ def create_analysis(
     else:
         response.status_code = 200
 
+    return AnalysisResource.model_validate(row)
+
+
+@router.get("/analyses", response_model=AnalysesListResponse)
+def get_analyses(db: Session = Depends(get_db)) -> AnalysesListResponse:
+    """History: all saved analyses, newest first. Never calls an external
+    provider (spec §6.3) -- a pure database read.
+    """
+    rows = list_analyses(db)
+    return AnalysesListResponse(analyses=[AnalysisResource.model_validate(row) for row in rows])
+
+
+@router.get("/analyses/{analysis_id}", response_model=AnalysisResource)
+def get_analysis(analysis_id: int, db: Session = Depends(get_db)) -> AnalysisResource:
+    row = get_analysis_by_id(db, analysis_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Analysis not found")
     return AnalysisResource.model_validate(row)
