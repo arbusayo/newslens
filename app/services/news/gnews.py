@@ -5,6 +5,12 @@ NormalizedArticle is the only thing the rest of the app depends on.
 See spec §5 for normalisation rules and the GNews free-plan caveats
 (result cap, quota, possibly-unreliable sort/date-range params — this
 module re-sorts server-side rather than trusting the provider's order).
+
+The endpoint URL is operational configuration (settings.gnews_base_url),
+not a code constant — e.g. pointing at a sandbox/mock endpoint shouldn't
+need a source change. _SEARCH_WINDOW_DAYS/_MAX_RESULTS stay as plain
+constants: they're this provider's own search parameters, not something
+a deployment would ever need to override.
 """
 from __future__ import annotations
 
@@ -20,7 +26,6 @@ from app.services.errors import ProviderError, ProviderTimeout, ProviderUnavaila
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = "https://gnews.io/api/v4/search"
 _SEARCH_WINDOW_DAYS = 7
 _MAX_RESULTS = 10
 
@@ -43,7 +48,7 @@ def search(query: str, settings: Settings) -> list[NormalizedArticle]:
     }
 
     try:
-        response = _client().get(_BASE_URL, params=params)
+        response = _client().get(settings.gnews_base_url, params=params)
     except httpx.TimeoutException as exc:
         logger.warning("GNews request timed out: %s", exc)
         raise ProviderTimeout("GNews request timed out") from exc
@@ -101,7 +106,7 @@ def _normalise(raw_articles: list[dict]) -> list[NormalizedArticle]:
                 published_at=_parse_published_at(raw.get("publishedAt")),
                 description=raw.get("description") or None,
                 content=raw.get("content") or None,
-                analysis_id=None,  # filled in by the route after one DB lookup
+                analysis_id=None,  # filled in by app.services.analysis after one DB lookup
             )
         )
 

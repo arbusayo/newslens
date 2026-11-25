@@ -1,15 +1,18 @@
-"""HTTP endpoints. Base path /api, mounted in app.main."""
+"""HTTP endpoints. Base path /api, mounted in app.main.
+
+Routes validate input, call services and map service-layer errors to HTTP
+status codes — they don't build queries or talk to the database directly.
+"""
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.models import ArticleAnalysis
-from app.schemas import ArticlesResponse, NormalizedArticle
+from app.schemas import ArticlesResponse
 from app.services.errors import ProviderError, ProviderTimeout, ProviderUnavailable
+from app.services.analysis import attach_saved_analysis_ids
 from app.services.news import search_articles
 
 logger = logging.getLogger(__name__)
@@ -45,18 +48,5 @@ def get_articles(
         logger.warning("news search failed: %s", exc)
         raise HTTPException(status_code=502, detail="News provider error") from exc
 
-    _attach_analysis_ids(articles, db)
+    attach_saved_analysis_ids(articles, db)
     return ArticlesResponse(articles=articles)
-
-
-def _attach_analysis_ids(articles: list[NormalizedArticle], db: Session) -> None:
-    """One query for every returned URL, not one query per article (spec §5)."""
-    if not articles:
-        return
-    urls = [article.url for article in articles]
-    rows = db.execute(
-        select(ArticleAnalysis.id, ArticleAnalysis.article_url).where(ArticleAnalysis.article_url.in_(urls))
-    ).all()
-    id_by_url = {url: id_ for id_, url in rows}
-    for article in articles:
-        article.analysis_id = id_by_url.get(article.url)

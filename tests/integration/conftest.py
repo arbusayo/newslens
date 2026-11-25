@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 os.environ.setdefault("NEWS_PROVIDER", "gnews")
 os.environ.setdefault("GNEWS_API_KEY", "test-gnews-key")
+os.environ.setdefault("GNEWS_BASE_URL", "https://gnews.io/api/v4/search")
 os.environ.setdefault("AI_PROVIDER", "openai")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
 os.environ.setdefault("OPENAI_MODEL", "gpt-4o-mini")

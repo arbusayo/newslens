@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # News provider — selects a module in app/services/news/
     news_provider: str
     gnews_api_key: str
+    gnews_base_url: str
 
     # AI provider — selects a module in app/services/analysis/
     ai_provider: str
