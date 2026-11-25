@@ -3,6 +3,13 @@
 Settings() is a process-wide cached singleton (see app/config.py), so the
 required env vars below must exist before anything imports app.config —
 including a dedicated test database, never the dev/hosted one (spec §11).
+
+These are unconditional overrides, NOT os.environ.setdefault(): running
+via `docker compose run --rm app pytest` inherits every real value from
+.env through Compose's env_file: directive before Python even starts, so
+setdefault here would silently be a no-op and tests would run against
+the real database and real-looking keys. Every value below must win
+regardless of what's already in the environment.
 """
 import os
 
@@ -11,18 +18,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-os.environ.setdefault("NEWS_PROVIDER", "gnews")
-os.environ.setdefault("GNEWS_API_KEY", "test-gnews-key")
-os.environ.setdefault("GNEWS_BASE_URL", "https://gnews.io/api/v4/search")
-os.environ.setdefault("AI_PROVIDER", "openai")
-os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
-os.environ.setdefault("OPENAI_MODEL", "gpt-4o-mini")
+os.environ["NEWS_PROVIDER"] = "gnews"
+os.environ["GNEWS_API_KEY"] = "test-gnews-key"
+os.environ["GNEWS_BASE_URL"] = "https://gnews.io/api/v4/search"
+os.environ["AI_PROVIDER"] = "openai"
+os.environ["OPENAI_API_KEY"] = "test-openai-key"
+os.environ["OPENAI_MODEL"] = "gpt-4o-mini"
 
 _TEST_DB_NAME = "newslens_test"
 _ADMIN_DATABASE_URL = os.environ.get(
     "TEST_ADMIN_DATABASE_URL", "postgresql://newslens:newslens@db:5432/postgres"
 )
-os.environ.setdefault("DATABASE_URL", f"postgresql+psycopg://newslens:newslens@db:5432/{_TEST_DB_NAME}")
+os.environ["DATABASE_URL"] = f"postgresql+psycopg://newslens:newslens@db:5432/{_TEST_DB_NAME}"
 
 
 def _ensure_test_database_exists() -> None:
