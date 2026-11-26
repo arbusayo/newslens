@@ -37,7 +37,7 @@ error at startup if any is missing.
 | `GNEWS_BASE_URL` | GNews search endpoint (operational config, not a code constant) |
 | `AI_PROVIDER` | Selects the implementation in `app/services/analysis/` (currently `openai`) |
 | `OPENAI_API_KEY` | Your OpenAI API key |
-| `OPENAI_MODEL` | Model identifier your key's project actually has access to (verify with `client.models.list()` — see Known limitations) |
+| `OPENAI_MODEL` | Model identifier your key's project actually has access to — verify with `client.models.list()` before assuming a default like `gpt-4o-mini` works |
 | `DATABASE_URL` | SQLAlchemy connection string; `db` is the Compose service hostname |
 
 ## Database
@@ -84,88 +84,50 @@ curl "http://localhost:8000/api/articles?query=artificial+intelligence"
 
 ## Architecture
 
-- **Layered monolith**: FastAPI serves both the JSON API and the static UI
-  (`app/static/`) from one origin — no separate frontend build or server.
-- **Provider seam**: `app/services/news/` and `app/services/analysis/` each
-  dispatch to a provider module selected at runtime by `NEWS_PROVIDER` /
-  `AI_PROVIDER`. Adding a provider is one new module implementing the same
-  function signature, plus one dict entry — no interfaces, no DI container.
-- **Dedup and race handling** (`app/services/analysis/store.py`): a POST
-  checks the database first; if nothing exists, the read transaction is
-  released *before* the OpenAI call (never holding a DB connection open
-  across an external request); the new row is then inserted in a short
-  write transaction. If a concurrent request already won the race, the
-  resulting unique-constraint violation on `article_url` is caught
-  specifically (by constraint name) and recovered into the winning row,
-  rather than surfacing as an error.
-- **Client state** (`app/static/app.js`): one status map per view, keyed by
-  URL/id (`pending` / `ready` / `error`), not three separate maps. An
-  in-flight request is never aborted just because the user selected
-  something else — it's left to finish and update the cache/badge, but a
-  late response only repaints the detail panel if it's still the active
-  selection.
+```mermaid
+flowchart LR
+    UI["Browser UI<br/>HTML · CSS · JS<br/>(no build step)"]
 
-## Known limitations
+    subgraph App["NewsLens — one FastAPI deployable"]
+        API["/api routes"]
+        NewsSvc["News service<br/>(provider seam)"]
+        AnalysisSvc["Analysis service<br/>(provider seam)"]
+    end
 
-- **No authentication.** The hosted demo is intentionally public — a
-  deliberate product decision, not an oversight. Anyone with the URL can
-  trigger billable GNews/OpenAI requests; mitigate with provider-side
-  spend/quota controls (an OpenAI budget cap in particular) rather than a
-  login.
-- **GNews free-tier behaviour**, observed directly while building this:
-  article `content` is truncated (hence `content_scope: "excerpt"` on
-  every saved analysis today); the same story is sometimes returned
-  multiple times under different syndicated URLs, since de-duplication is
-  URL-based only, not content-based; and the daily request quota is shared
-  across everyone using this demo.
-- **Article identity is the provider URL, used verbatim** — no
-  canonicalisation. A re-syndicated copy of a story at a different URL is,
-  by design, a different article.
-- **Client-supplied snapshot provenance.** `POST /api/analyses` trusts the
-  snapshot the client submits rather than independently re-fetching the
-  article server-side; a client could in principle submit a modified
-  snapshot. Accepted for this restricted demo.
-- **Possible concurrent duplicate inference.** Two simultaneous first-time
-  requests for the same brand-new URL can each trigger a real OpenAI call;
-  only one result is ever persisted (the unique constraint on
-  `article_url` guarantees that), but both calls still happen. No
-  distributed locking — not justified at this scale.
-- **History has a quiet 100-row cap**, not pagination. It bounds an
-  otherwise-ever-growing, shared, never-deleted table without adding any
-  pagination UI or API surface.
+    DB[("PostgreSQL<br/>article_analyses")]
+    GNews(["GNews API"])
+    OpenAI(["OpenAI API"])
 
-## Deployment
+    UI -- "search / select / browse history ①" --> API
+    API --> NewsSvc
+    API --> AnalysisSvc
+    API --> DB
+    NewsSvc -- "NEWS_PROVIDER=gnews ②" --> GNews
+    AnalysisSvc -- "AI_PROVIDER=openai ③" --> OpenAI
+    AnalysisSvc -- "④" --> DB
+```
 
-Hosted on [Render](https://render.com), via the `render.yaml` Blueprint in
-this repo — a web service (built from the same `Dockerfile` used locally)
-plus a free-tier managed Postgres database.
+One deployable, same origin for API and UI. `NewsSvc`/`AnalysisSvc` each
+dispatch to a provider module picked at runtime by an env var — adding a
+provider is one new module + one dict entry, no interfaces or DI
+container. A `POST` checks the database before calling OpenAI, releases
+the read transaction first, then inserts in a short write transaction;
+a concurrent insert recovers into the winning row via its unique
+constraint instead of erroring.
 
-**Hosted URL:** _pending first deploy — added here once live._
+**Known limitations, briefly** (circled numbers above):
 
-To deploy this yourself from a fork:
-
-1. Push to your own GitHub repo (already done here).
-2. On Render: **New → Blueprint**, connect the repo. Render reads
-   `render.yaml` automatically and proposes the web service + database.
-3. When prompted, supply your own `GNEWS_API_KEY` and `OPENAI_API_KEY` —
-   these are intentionally left out of `render.yaml` (`sync: false`) so
-   they're never committed to the repo.
-4. Apply. `DATABASE_URL` is wired automatically from the database Render
-   creates (see `app/config.py`'s connection-string normalisation — a
-   managed provider's plain `postgres://`/`postgresql://` string is
-   rewritten to the `postgresql+psycopg://` form SQLAlchemy needs, with no
-   manual edits required).
-
-**Known hosting-specific behaviour, verified against Render's docs before
-deploying, not assumed:**
-- The free web service spins down after 15 minutes idle and takes about a
-  minute to cold-start back up on the next request (Render shows its own
-  loading page meanwhile) — the first hit after idle time will be slow.
-- The free Postgres plan **expires 30 days after creation**, with a
-  14-day grace period before Render deletes it (data included) if not
-  upgraded to a paid plan by then. Accepted for this demo; upgrading to
-  the $6/month tier at any point before expiry removes this limit
-  entirely with no other changes needed.
+- **①** No authentication — the demo is intentionally public; mitigate
+  cost exposure via provider-side spend caps, not a login.
+- **②** GNews free tier: truncated content, occasional near-duplicate
+  URLs for the same story, shared daily quota.
+- **③** Concurrent duplicate inference is possible for a brand-new URL
+  (two simultaneous first requests can both call OpenAI); only one
+  result is ever persisted. No distributed locking.
+- **④** `article_url` is the identity, used verbatim (no
+  canonicalisation); History is capped at 100 rows (a quiet safety
+  limit, not pagination); a submitted snapshot isn't independently
+  re-verified server-side.
 
 ## AI assistance disclosure
 
