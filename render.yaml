@@ -1,0 +1,29 @@
+databases:
+  - name: newslens-db
+    plan: free
+    postgresMajorVersion: "16" # matches compose.yaml's local postgres:16 image
+
+services:
+  - type: web
+    name: newslens
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: NEWS_PROVIDER
+        value: gnews
+      - key: GNEWS_API_KEY
+        sync: false # enter your real key in the Render dashboard, never here
+      - key: GNEWS_BASE_URL
+        value: https://gnews.io/api/v4/search
+      - key: AI_PROVIDER
+        value: openai
+      - key: OPENAI_API_KEY
+        sync: false # enter your real key in the Render dashboard, never here
+      - key: OPENAI_MODEL
+        value: gpt-6-luna # the model this project's supplied key actually has access to -- see README
+      - key: DATABASE_URL
+        fromDatabase:
+          name: newslens-db
+          property: connectionString

@@ -136,8 +136,36 @@ curl "http://localhost:8000/api/articles?query=artificial+intelligence"
 
 ## Deployment
 
-Not yet hosted. This section will be filled in with the hosted URL and
-reviewer access instructions once deployment is complete.
+Hosted on [Render](https://render.com), via the `render.yaml` Blueprint in
+this repo — a web service (built from the same `Dockerfile` used locally)
+plus a free-tier managed Postgres database.
+
+**Hosted URL:** _pending first deploy — added here once live._
+
+To deploy this yourself from a fork:
+
+1. Push to your own GitHub repo (already done here).
+2. On Render: **New → Blueprint**, connect the repo. Render reads
+   `render.yaml` automatically and proposes the web service + database.
+3. When prompted, supply your own `GNEWS_API_KEY` and `OPENAI_API_KEY` —
+   these are intentionally left out of `render.yaml` (`sync: false`) so
+   they're never committed to the repo.
+4. Apply. `DATABASE_URL` is wired automatically from the database Render
+   creates (see `app/config.py`'s connection-string normalisation — a
+   managed provider's plain `postgres://`/`postgresql://` string is
+   rewritten to the `postgresql+psycopg://` form SQLAlchemy needs, with no
+   manual edits required).
+
+**Known hosting-specific behaviour, verified against Render's docs before
+deploying, not assumed:**
+- The free web service spins down after 15 minutes idle and takes about a
+  minute to cold-start back up on the next request (Render shows its own
+  loading page meanwhile) — the first hit after idle time will be slow.
+- The free Postgres plan **expires 30 days after creation**, with a
+  14-day grace period before Render deletes it (data included) if not
+  upgraded to a paid plan by then. Accepted for this demo; upgrading to
+  the $6/month tier at any point before expiry removes this limit
+  entirely with no other changes needed.
 
 ## AI assistance disclosure
 
